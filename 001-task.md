@@ -175,77 +175,41 @@ Put them in `src/` and autoload them via Composer:
 photo-gallery/
 
 ├── public/
-
 │ ├── index.php # redirects to gallery or login
-
 │ ├── register.php
-
 │ ├── login.php
-
 │ ├── logout.php
-
 │ ├── gallery.php
-
 │ ├── upload.php
-
 │ ├── photo.php
-
 │ ├── delete.php
-
 │ └── uploads/ # user images (writable)
-
 ├── src/
-
 │ ├── Database.php
-
 │ ├── Auth.php
-
 │ ├── Validator.php
-
 │ ├── Models/
-
 │ │ ├── User.php
-
 │ │ └── Image.php
-
 │ ├── Repositories/
-
 │ │ ├── UserRepository.php
-
 │ │ └── ImageRepository.php
-
 │ └── Services/
-
 │ └── ImageUploader.php
-
 ├── views/
-
 │ ├── layout/header.php
-
 │ ├── layout/footer.php
-
 │ ├── auth/register.php
-
 │ ├── auth/login.php
-
 │ └── gallery/
-
 │ ├── index.php
-
 │ ├── upload.php
-
 │ └── show.php
-
 ├── config/
-
 │ └── config.php # DB creds (loaded from .env)
-
 ├── composer.json
-
 ├── .env.example
-
 └── README.md
-
 ```
 
   
@@ -257,39 +221,24 @@ photo-gallery/
 ```sql
 
 CREATE TABLE users (
-
 id INT AUTO_INCREMENT PRIMARY KEY,
-
 email VARCHAR(255) NOT NULL UNIQUE,
-
 password_hash VARCHAR(255) NOT NULL,
-
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
 );
 
   
 
 CREATE TABLE images (
-
 id INT AUTO_INCREMENT PRIMARY KEY,
-
 user_id INT NOT NULL,
-
 filename VARCHAR(255) NOT NULL,
-
 title VARCHAR(100) NOT NULL,
-
 description TEXT NULL,
-
 mime_type VARCHAR(50) NOT NULL,
-
 size INT NOT NULL,
-
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-
 );
 
 ```
