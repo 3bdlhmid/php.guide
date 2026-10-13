@@ -1,362 +1,480 @@
+
+## 🗺️ The Big Picture (What We're Building)
+
+  
+
+A tiny web app where:
+
+- A user registers, logs in
+
+- Uploads images
+
+- Sees their own images in a grid
+
+- Opens one image
+
+- Deletes it
+
+  
+
+**That's it.** Every decision below is filtered through: *does this serve those 5 things and nothing more?*
+
+  
+
 ---
 
+  
+
+## 🔀 Flow 1 — Registration
+
+  
+
+### Steps (what actually happens)
+
+1. User opens `register.php` → sees form
+
+2. Submits: email + password + confirm password
+
+3. Server validates:
+
+- Email format valid
+
+- Email not already in DB
+
+- Password ≥ 8 chars
+
+- Passwords match
+
+4. Hash password
+
+5. Insert user row
+
+6. Log them in automatically
+
+7. Redirect to `gallery.php`
+
+  
+
+### Decisions in this flow
+
+  
+
+| Decision | Options | Chosen | Why |
+
+|---|---|---|---|
+
+| Hash algorithm | md5 / sha1 / `password_hash` | `password_hash(PASSWORD_DEFAULT)` | md5 is broken; `password_hash` is future-proof and one line |
+
+| Auto-login after register | yes / no | **yes** | Fewer steps = fewer bug surfaces for beginners |
+
+| Confirm password field | yes / no | **yes** | Client-side sanity check, teaches validation flow |
+
+| Where validation lives | in page / in `Validator` class | **`Validator` class** | Reused across register/login/upload — DRY |
+
+| Unique email check | in `UserRepository::findByEmail()` | **yes** | Keeps SQL out of the page |
+
+| Error display | `die()` / array of errors / flash | **array of errors** | Simple, inline, no session needed yet |
+
+  
+
+### Trade-off noted
+
+Auto-login skips email verification. **Accepted** — no email system in scope. Would revisit only if real users were involved.
+
+  
 
 ---
 
-<h2 id="🗺️-the-big-picture-what-were-building">🗺️ The Big Picture (What We’re Building)</h2>
-<p>A tiny web app where:</p>
-<ul>
-<li>
-<p>A user registers, logs in</p>
-</li>
-<li>
-<p>Uploads images</p>
-</li>
-<li>
-<p>Sees their own images in a grid</p>
-</li>
-<li>
-<p>Opens one image</p>
-</li>
-<li>
-<p>Deletes it</p>
-</li>
-</ul>
-<p><strong>That’s it.</strong> Every decision below is filtered through: <em>does this serve those 5 things and nothing more?</em></p>
-<hr>
-<h2 id="🔀-flow-1-—-registration">🔀 Flow 1 — Registration</h2>
-<h3 id="steps-what-actually-happens">Steps (what actually happens)</h3>
-<ol>
-<li>
-<p>User opens <code>register.php</code> → sees form</p>
-</li>
-<li>
-<p>Submits: email + password + confirm password</p>
-</li>
-<li>
-<p>Server validates:</p>
-</li>
-</ol>
-<ul>
-<li>
-<p>Email format valid</p>
-</li>
-<li>
-<p>Email not already in DB</p>
-</li>
-<li>
-<p>Password ≥ 8 chars</p>
-</li>
-<li>
-<p>Passwords match</p>
-</li>
-</ul>
-<ol start="4">
-<li>
-<p>Hash password</p>
-</li>
-<li>
-<p>Insert user row</p>
-</li>
-<li>
-<p>Log them in automatically</p>
-</li>
-<li>
-<p>Redirect to <code>gallery.php</code></p>
-</li>
-</ol>
-<h3 id="decisions-in-this-flow">Decisions in this flow</h3>
-<p>| Decision | Options | Chosen | Why |</p>
-<p>|—|---|—|---|</p>
-<p>| Hash algorithm | md5 / sha1 / <code>password_hash</code> | <code>password_hash(PASSWORD_DEFAULT)</code> | md5 is broken; <code>password_hash</code> is future-proof and one line |</p>
-<p>| Auto-login after register | yes / no | <strong>yes</strong> | Fewer steps = fewer bug surfaces for beginners |</p>
-<p>| Confirm password field | yes / no | <strong>yes</strong> | Client-side sanity check, teaches validation flow |</p>
-<p>| Where validation lives | in page / in <code>Validator</code> class | <strong><code>Validator</code> class</strong> | Reused across register/login/upload — DRY |</p>
-<p>| Unique email check | in <code>UserRepository::findByEmail()</code> | <strong>yes</strong> | Keeps SQL out of the page |</p>
-<p>| Error display | <code>die()</code> / array of errors / flash | <strong>array of errors</strong> | Simple, inline, no session needed yet |</p>
-<h3 id="trade-off-noted">Trade-off noted</h3>
-<p>Auto-login skips email verification. <strong>Accepted</strong> — no email system in scope. Would revisit only if real users were involved.</p>
-<hr>
-<h2 id="🔀-flow-2-—-login">🔀 Flow 2 — Login</h2>
-<h3 id="steps">Steps</h3>
-<ol>
-<li>
-<p>User opens <code>login.php</code> → sees form</p>
-</li>
-<li>
-<p>Submits: email + password</p>
-</li>
-<li>
-<p>Server:</p>
-</li>
-</ol>
-<ul>
-<li>
-<p>Finds user by email (<code>UserRepository::findByEmail</code>)</p>
-</li>
-<li>
-<p>If not found → generic error: <em>“Invalid credentials”</em></p>
-</li>
-<li>
-<p>Verifies password with <code>password_verify</code></p>
-</li>
-<li>
-<p>If wrong → same generic error</p>
-</li>
-</ul>
-<ol start="4">
-<li>On success:</li>
-</ol>
-<ul>
-<li>
-<p><code>session_regenerate_id(true)</code></p>
-</li>
-<li>
-<p>Store <code>user_id</code> and <code>email</code> in <code>$_SESSION</code></p>
-</li>
-<li>
-<p>Redirect to <code>gallery.php</code></p>
-</li>
-</ul>
-<h3 id="decisions">Decisions</h3>
-<p>| Decision | Options | Chosen | Why |</p>
-<p>|—|---|—|---|</p>
-<p>| Error specificity | “Email not found” vs “Invalid credentials” | <strong>generic</strong> | Prevents user enumeration — small habit, big lesson |</p>
-<p>| Session storage | <code>$_SESSION['user'] = $userObject</code> / just IDs | <strong>just IDs</strong> | Objects get stale; IDs are stable |</p>
-<p>| Session regeneration | always / only on login | <strong>only on login</strong> | Prevents session fixation |</p>
-<p>| Auth logic location | page code / <code>Auth</code> class | <strong><code>Auth</code> class</strong> | Every protected page needs it — single source of truth |</p>
-<p>| “Remember me” | yes / no | <strong>no</strong> | Out of scope; adds cookie + token complexity |</p>
-<h3 id="trade-off-noted-1">Trade-off noted</h3>
-<p>No rate limiting on login. <strong>Accepted</strong> — local project, no attacker. Would revisit if exposed to internet.</p>
-<hr>
-<h2 id="🔀-flow-3-—-protecting-pages">🔀 Flow 3 — Protecting Pages</h2>
-<h3 id="the-pattern">The pattern</h3>
-<p>Every protected page starts with:</p>
-<pre class=" language-php"><code class="prism  language-php">
-<span class="token keyword">require_once</span> <span class="token constant">__DIR__</span> <span class="token punctuation">.</span> <span class="token string">'/../src/bootstrap.php'</span><span class="token punctuation">;</span>
+  
 
-Auth<span class="token punctuation">:</span><span class="token punctuation">:</span><span class="token function">requireLogin</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// redirects to login.php if not logged in</span>
+## 🔀 Flow 2 — Login
 
-</code></pre>
-<h3 id="decisions-1">Decisions</h3>
-<p>| Decision | Options | Chosen | Why |</p>
-<p>|—|---|—|---|</p>
-<p>| Manual check per page vs helper | manual / <code>Auth::requireLogin()</code> | <strong>helper</strong> | One line, cannot forget, consistent |</p>
-<p>| What <code>requireLogin</code> does | redirects / returns false / throws | <strong>redirects</strong> | Simplest for a beginner’s mental model |</p>
-<p>| Where to store “intended URL” | session / query string / skip | <strong>skip</strong> | Not worth complexity for this project |</p>
-<hr>
-<h2 id="🔀-flow-4-—-upload">🔀 Flow 4 — Upload</h2>
-<h3 id="steps-1">Steps</h3>
-<ol>
-<li>
-<p>User opens <code>upload.php</code> → form</p>
-</li>
-<li>
-<p>Submits: file + title + description</p>
-</li>
-<li>
-<p>Server:</p>
-</li>
-</ol>
-<ul>
-<li>
-<p>Check logged in</p>
-</li>
-<li>
-<p>Validate: file present, size ≤ 5MB, real image, allowed MIME (jpg/png/gif)</p>
-</li>
-<li>
-<p>Validate: title non-empty, ≤ 100 chars</p>
-</li>
-<li>
-<p>Generate new filename: <code>uniqid() . '.' . $ext</code></p>
-</li>
-<li>
-<p>Move file from tmp → <code>uploads/</code></p>
-</li>
-<li>
-<p>Save row in DB via <code>ImageRepository::save()</code></p>
-</li>
-</ul>
-<ol start="4">
-<li>Redirect to <code>gallery.php</code> (PRG pattern — Post/Redirect/Get)</li>
-</ol>
-<h3 id="decisions-2">Decisions</h3>
-<p>| Decision | Options | Chosen | Why |</p>
-<p>|—|---|—|---|</p>
-<p>| Validate before move | always | <strong>yes</strong> | Never move an unvalidated file |</p>
-<p>| File type check | extension / MIME / <code>getimagesize</code> | <strong><code>getimagesize</code> + MIME</strong> | Extension lies; MIME header can lie; <code>getimagesize</code> reads bytes |</p>
-<p>| Original filename | keep / rename | <strong>rename</strong> | Prevents path traversal (<code>../../etc/passwd</code>) and collisions |</p>
-<p>| Where uploads live | same folder as code / <code>public/uploads/</code> | <strong><code>public/uploads/</code></strong> | Must be web-accessible to be shown |</p>
-<p>| Protect <code>uploads/</code> from PHP execution | .htaccess / server config / ignore | <strong>.htaccess</strong> | Cheapest way to say “never run PHP here” |</p>
-<p>| After success | render page / redirect | <strong>redirect</strong> | Refresh won’t re-upload; classic PRG lesson |</p>
-<p>| Save metadata | in file name / in DB | <strong>DB</strong> | Searchable, sortable, ownable |</p>
-<h3 id="trade-off-noted-2">Trade-off noted</h3>
-<p>No image resizing. <strong>Accepted</strong> — adds GD complexity. Revisit only if storage becomes a problem.</p>
-<hr>
-<h2 id="🔀-flow-5-—-gallery">🔀 Flow 5 — Gallery</h2>
-<h3 id="steps-2">Steps</h3>
-<ol>
-<li>
-<p>User opens <code>gallery.php</code></p>
-</li>
-<li>
-<p><code>Auth::requireLogin()</code></p>
-</li>
-<li>
-<p><code>$images = $imageRepo-&gt;findAllByUser(Auth::id())</code></p>
-</li>
-<li>
-<p>Loop and render grid</p>
-</li>
-<li>
-<p>If empty → show “No photos yet — upload your first”</p>
-</li>
-</ol>
-<h3 id="decisions-3">Decisions</h3>
-<p>| Decision | Options | Chosen | Why |</p>
-<p>|—|---|—|---|</p>
-<p>| Filter by user | yes / show all | <strong>yes</strong> | Ownership is a core requirement — teaches authorization |</p>
-<p>| Sort order | oldest / newest | <strong>newest</strong> | Users expect latest first |</p>
-<p>| Pagination | yes / no | <strong>no (yet)</strong> | YAGNI — add when &gt; 50 images |</p>
-<p>| Thumbnails | generate / use original | <strong>original</strong> | Avoids GD; CSS shrinks the display. Add real thumbnails later |</p>
-<p>| Query location | page / repo | <strong>repo</strong> | Consistent with other flows |</p>
-<h3 id="trade-off-noted-3">Trade-off noted</h3>
-<p>Loading full-size images in a grid is slow. <strong>Accepted</strong> — fine for a learning project. Real fix: generate thumbnails on upload.</p>
-<hr>
-<h2 id="🔀-flow-6-—-view-single-photo">🔀 Flow 6 — View Single Photo</h2>
-<h3 id="steps-3">Steps</h3>
-<ol>
-<li>
-<p>URL: <code>photo.php?id=5</code></p>
-</li>
-<li>
-<p><code>Auth::requireLogin()</code></p>
-</li>
-<li>
-<p><code>$image = $imageRepo-&gt;findById((int) $_GET['id'])</code></p>
-</li>
-<li>
-<p><strong>Ownership check</strong>: <code>$image-&gt;userId !== Auth::id()</code> → <strong>404, not 403</strong></p>
-</li>
-<li>
-<p>If null → 404</p>
-</li>
-<li>
-<p>Render full image + details</p>
-</li>
-</ol>
-<h3 id="decisions-4">Decisions</h3>
-<p>| Decision | Options | Chosen | Why |</p>
-<p>|—|---|—|---|</p>
-<p>| Cast <code>$_GET['id']</code> | raw / <code>(int)</code> | <strong><code>(int)</code></strong> | Prevents type confusion, mandatory habit |</p>
-<p>| Not-found response | 404 / 403 / blank | <strong>404</strong> | 403 reveals existence; 404 hides it — good security lesson |</p>
-<p>| Same error for “not found” and “not yours” | yes / no | <strong>yes</strong> | Don’t leak whether the resource exists |</p>
-<p>| Data shape returned | array / <code>Image</code> object | <strong><code>Image</code> object</strong> | Teaches value objects; methods like <code>-&gt;getUrl()</code> live on the object |</p>
-<hr>
-<h2 id="🔀-flow-7-—-delete">🔀 Flow 7 — Delete</h2>
-<h3 id="steps-4">Steps</h3>
-<ol>
-<li>
-<p>Button on <code>photo.php</code> → posts to <code>delete.php</code></p>
-</li>
-<li>
-<p>Server:</p>
-</li>
-</ol>
-<ul>
-<li>
-<p><code>Auth::requireLogin()</code></p>
-</li>
-<li>
-<p>Check CSRF token</p>
-</li>
-<li>
-<p>Load image, check ownership</p>
-</li>
-<li>
-<p>Delete file from disk</p>
-</li>
-<li>
-<p>Delete row from DB</p>
-</li>
-<li>
-<p>Redirect to <code>gallery.php</code> with flash message</p>
-</li>
-</ul>
-<h3 id="decisions-5">Decisions</h3>
-<p>| Decision | Options | Chosen | Why |</p>
-<p>|—|---|—|---|</p>
-<p>| Method | GET / POST | <strong>POST</strong> | GET is for reading; deletes mutate state |</p>
-<p>| Confirmation | none / JS confirm / server page | <strong>JS <code>confirm()</code></strong> | Cheapest UX, no extra page |</p>
-<p>| Order: file vs DB | file first / DB first | <strong>file first, then DB</strong> | If file delete fails, DB still points to real file (recoverable). If DB deletes first and file fails, orphan file — harder to trace |</p>
-<p>| CSRF | yes / no | <strong>yes</strong> | Teaches a real security habit; cheap to add |</p>
-<p>| Authorization | owner only | <strong>owner only</strong> | Matches gallery rule |</p>
-<h3 id="trade-off-noted-4">Trade-off noted</h3>
-<p>JS <code>confirm()</code> can be bypassed. <strong>Accepted</strong> — the real defense is server-side ownership + CSRF, which we have.</p>
-<hr>
-<h2 id="🧱-structural-decisions-app-wide">🧱 Structural Decisions (App-wide)</h2>
-<p>| Decision | Chosen | Why |</p>
-<p>|—|---|—|</p>
-<p>| Pattern | Plain pages + classes (no MVC) | Keeps request flow visible; teaches separation without routing magic |</p>
-<p>| Class loading | <code>require_once</code> via <code>bootstrap.php</code> | Beginner-friendly; introduces Composer later as a <em>felt</em> upgrade |</p>
-<p>| Database access | PDO + prepared statements in repositories | No SQL in pages; no injection risk |</p>
-<p>| Auth | Session-based | Simplest correct model for a monolith |</p>
-<p>| Views | Plain PHP in <code>views/</code> | No template engine to hide the output logic |</p>
-<p>| Config | <code>.env</code> parsed by tiny loader | Introduces secrets hygiene without Composer |</p>
-<p>| File structure | <code>public/</code> as web root | Good habit early; avoids exposing <code>src/</code> |</p>
-<hr>
-<h2 id="🚫-out-of-scope-explicitly-decided-against">🚫 Out of Scope (Explicitly Decided Against)</h2>
-<p>Write these down. They prevent scope creep.</p>
-<ul>
-<li>
-<p>❌ Email verification</p>
-</li>
-<li>
-<p>❌ Password reset</p>
-</li>
-<li>
-<p>❌ User roles / admin</p>
-</li>
-<li>
-<p>❌ Social login</p>
-</li>
-<li>
-<p>❌ Likes / comments</p>
-</li>
-<li>
-<p>❌ Albums / tags</p>
-</li>
-<li>
-<p>❌ Search</p>
-</li>
-<li>
-<p>❌ Pagination</p>
-</li>
-<li>
-<p>❌ Thumbnail generation</p>
-</li>
-<li>
-<p>❌ REST API</p>
-</li>
-<li>
-<p>❌ Framework / MVC / router</p>
-</li>
-<li>
-<p>❌ Composer (for now)</p>
-</li>
-<li>
-<p>❌ Unit tests (for now)</p>
-</li>
-<li>
-<p>❌ Docker / deployment</p>
-</li>
-</ul>
-<p>Every “no” above is a <strong>decision</strong> — not an oversight. Tell your friend: <em>“These are decided. If you want one, bring a constraint that justifies it.”</em></p>
-<hr>
-<h2 id="🧭-decision-log-template-give-him-this">🧭 Decision Log Template (Give Him This)</h2>
-<p>For every non-obvious choice, he writes:</p>
-<pre><code>
+  
+
+### Steps
+
+1. User opens `login.php` → sees form
+
+2. Submits: email + password
+
+3. Server:
+
+- Finds user by email (`UserRepository::findByEmail`)
+
+- If not found → generic error: *"Invalid credentials"*
+
+- Verifies password with `password_verify`
+
+- If wrong → same generic error
+
+4. On success:
+
+- `session_regenerate_id(true)`
+
+- Store `user_id` and `email` in `$_SESSION`
+
+- Redirect to `gallery.php`
+
+  
+
+### Decisions
+
+  
+
+| Decision | Options | Chosen | Why |
+
+|---|---|---|---|
+
+| Error specificity | "Email not found" vs "Invalid credentials" | **generic** | Prevents user enumeration — small habit, big lesson |
+
+| Session storage | `$_SESSION['user'] = $userObject` / just IDs | **just IDs** | Objects get stale; IDs are stable |
+
+| Session regeneration | always / only on login | **only on login** | Prevents session fixation |
+
+| Auth logic location | page code / `Auth` class | **`Auth` class** | Every protected page needs it — single source of truth |
+
+| "Remember me" | yes / no | **no** | Out of scope; adds cookie + token complexity |
+
+  
+
+### Trade-off noted
+
+No rate limiting on login. **Accepted** — local project, no attacker. Would revisit if exposed to internet.
+
+  
+
+---
+
+  
+
+## 🔀 Flow 3 — Protecting Pages
+
+  
+
+### The pattern
+
+Every protected page starts with:
+
+```php
+
+require_once __DIR__ . '/../src/bootstrap.php';
+
+Auth::requireLogin(); // redirects to login.php if not logged in
+
+```
+
+  
+
+### Decisions
+
+  
+
+| Decision | Options | Chosen | Why |
+
+|---|---|---|---|
+
+| Manual check per page vs helper | manual / `Auth::requireLogin()` | **helper** | One line, cannot forget, consistent |
+
+| What `requireLogin` does | redirects / returns false / throws | **redirects** | Simplest for a beginner's mental model |
+
+| Where to store "intended URL" | session / query string / skip | **skip** | Not worth complexity for this project |
+
+  
+
+---
+
+  
+
+## 🔀 Flow 4 — Upload
+
+  
+
+### Steps
+
+1. User opens `upload.php` → form
+
+2. Submits: file + title + description
+
+3. Server:
+
+- Check logged in
+
+- Validate: file present, size ≤ 5MB, real image, allowed MIME (jpg/png/gif)
+
+- Validate: title non-empty, ≤ 100 chars
+
+- Generate new filename: `uniqid() . '.' . $ext`
+
+- Move file from tmp → `uploads/`
+
+- Save row in DB via `ImageRepository::save()`
+
+4. Redirect to `gallery.php` (PRG pattern — Post/Redirect/Get)
+
+  
+
+### Decisions
+
+  
+
+| Decision | Options | Chosen | Why |
+
+|---|---|---|---|
+
+| Validate before move | always | **yes** | Never move an unvalidated file |
+
+| File type check | extension / MIME / `getimagesize` | **`getimagesize` + MIME** | Extension lies; MIME header can lie; `getimagesize` reads bytes |
+
+| Original filename | keep / rename | **rename** | Prevents path traversal (`../../etc/passwd`) and collisions |
+
+| Where uploads live | same folder as code / `public/uploads/` | **`public/uploads/`** | Must be web-accessible to be shown |
+
+| Protect `uploads/` from PHP execution | .htaccess / server config / ignore | **.htaccess** | Cheapest way to say "never run PHP here" |
+
+| After success | render page / redirect | **redirect** | Refresh won't re-upload; classic PRG lesson |
+
+| Save metadata | in file name / in DB | **DB** | Searchable, sortable, ownable |
+
+  
+
+### Trade-off noted
+
+No image resizing. **Accepted** — adds GD complexity. Revisit only if storage becomes a problem.
+
+  
+
+---
+
+  
+
+## 🔀 Flow 5 — Gallery
+
+  
+
+### Steps
+
+1. User opens `gallery.php`
+
+2. `Auth::requireLogin()`
+
+3. `$images = $imageRepo->findAllByUser(Auth::id())`
+
+4. Loop and render grid
+
+5. If empty → show "No photos yet — upload your first"
+
+  
+
+### Decisions
+
+  
+
+| Decision | Options | Chosen | Why |
+
+|---|---|---|---|
+
+| Filter by user | yes / show all | **yes** | Ownership is a core requirement — teaches authorization |
+
+| Sort order | oldest / newest | **newest** | Users expect latest first |
+
+| Pagination | yes / no | **no (yet)** | YAGNI — add when > 50 images |
+
+| Thumbnails | generate / use original | **original** | Avoids GD; CSS shrinks the display. Add real thumbnails later |
+
+| Query location | page / repo | **repo** | Consistent with other flows |
+
+  
+
+### Trade-off noted
+
+Loading full-size images in a grid is slow. **Accepted** — fine for a learning project. Real fix: generate thumbnails on upload.
+
+  
+
+---
+
+  
+
+## 🔀 Flow 6 — View Single Photo
+
+  
+
+### Steps
+
+1. URL: `photo.php?id=5`
+
+2. `Auth::requireLogin()`
+
+3. `$image = $imageRepo->findById((int) $_GET['id'])`
+
+4. **Ownership check**: `$image->userId !== Auth::id()` → **404, not 403**
+
+5. If null → 404
+
+6. Render full image + details
+
+  
+
+### Decisions
+
+  
+
+| Decision | Options | Chosen | Why |
+
+|---|---|---|---|
+
+| Cast `$_GET['id']` | raw / `(int)` | **`(int)`** | Prevents type confusion, mandatory habit |
+
+| Not-found response | 404 / 403 / blank | **404** | 403 reveals existence; 404 hides it — good security lesson |
+
+| Same error for "not found" and "not yours" | yes / no | **yes** | Don't leak whether the resource exists |
+
+| Data shape returned | array / `Image` object | **`Image` object** | Teaches value objects; methods like `->getUrl()` live on the object |
+
+  
+
+---
+
+  
+
+## 🔀 Flow 7 — Delete
+
+  
+
+### Steps
+
+1. Button on `photo.php` → posts to `delete.php`
+
+2. Server:
+
+- `Auth::requireLogin()`
+
+- Check CSRF token
+
+- Load image, check ownership
+
+- Delete file from disk
+
+- Delete row from DB
+
+- Redirect to `gallery.php` with flash message
+
+  
+
+### Decisions
+
+  
+
+| Decision | Options | Chosen | Why |
+
+|---|---|---|---|
+
+| Method | GET / POST | **POST** | GET is for reading; deletes mutate state |
+
+| Confirmation | none / JS confirm / server page | **JS `confirm()`** | Cheapest UX, no extra page |
+
+| Order: file vs DB | file first / DB first | **file first, then DB** | If file delete fails, DB still points to real file (recoverable). If DB deletes first and file fails, orphan file — harder to trace |
+
+| CSRF | yes / no | **yes** | Teaches a real security habit; cheap to add |
+
+| Authorization | owner only | **owner only** | Matches gallery rule |
+
+  
+
+### Trade-off noted
+
+JS `confirm()` can be bypassed. **Accepted** — the real defense is server-side ownership + CSRF, which we have.
+
+  
+
+---
+
+  
+
+## 🧱 Structural Decisions (App-wide)
+
+  
+
+| Decision | Chosen | Why |
+
+|---|---|---|
+
+| Pattern | Plain pages + classes (no MVC) | Keeps request flow visible; teaches separation without routing magic |
+
+| Class loading | `require_once` via `bootstrap.php` | Beginner-friendly; introduces Composer later as a *felt* upgrade |
+
+| Database access | PDO + prepared statements in repositories | No SQL in pages; no injection risk |
+
+| Auth | Session-based | Simplest correct model for a monolith |
+
+| Views | Plain PHP in `views/` | No template engine to hide the output logic |
+
+| Config | `.env` parsed by tiny loader | Introduces secrets hygiene without Composer |
+
+| File structure | `public/` as web root | Good habit early; avoids exposing `src/` |
+
+  
+
+---
+
+  
+
+## 🚫 Out of Scope (Explicitly Decided Against)
+
+  
+
+Write these down. They prevent scope creep.
+
+  
+
+- ❌ Email verification
+
+- ❌ Password reset
+
+- ❌ User roles / admin
+
+- ❌ Social login
+
+- ❌ Likes / comments
+
+- ❌ Albums / tags
+
+- ❌ Search
+
+- ❌ Pagination
+
+- ❌ Thumbnail generation
+
+- ❌ REST API
+
+- ❌ Framework / MVC / router
+
+- ❌ Composer (for now)
+
+- ❌ Unit tests (for now)
+
+- ❌ Docker / deployment
+
+  
+
+Every "no" above is a **decision** — not an oversight. Tell your friend: *"These are decided. If you want one, bring a constraint that justifies it."*
+
+  
+
+---
+
+  
+
+## 🧭 Decision Log Template (Give Him This)
+
+  
+
+For every non-obvious choice, he writes:
+
+  
+
+```
+
 Date:
 
 Question:
@@ -371,9 +489,16 @@ Trade-off accepted:
 
 Revisit if:
 
-</code></pre>
-<p>Example entry:</p>
-<pre><code>
+```
+
+  
+
+Example entry:
+
+  
+
+```
+
 Date: 2026-02-14
 
 Question: Where to store uploaded files?
@@ -386,49 +511,72 @@ Why: Fast, inspectable, supports ownership + metadata
 
 Trade-off accepted: Two sources of truth → must clean both on delete
 
-Revisit if: Moving to cloud/S3, or file count &gt; 10k
+Revisit if: Moving to cloud/S3, or file count > 10k
 
-</code></pre>
-<p>Do this <strong>10 times</strong> during the project. By the end, he thinks like a dev, not a tutorial-follower.</p>
-<hr>
-<h2 id="🎯-the-one-rule-for-this-project">🎯 The One Rule for This Project</h2>
-<blockquote>
-<p><strong>If a decision doesn’t serve one of the 7 flows above, it’s out of scope.</strong></p>
-</blockquote>
-<p>That single sentence replaces a 50-page spec. Print it. Tape it to his monitor.</p>
-<hr>
-<h2 id="📌-what-to-review-with-him-weekly">📌 What to Review With Him Weekly</h2>
-<p>Ask these 5 questions every Friday:</p>
-<ol>
-<li>
-<p>Which flow did you finish?</p>
-</li>
-<li>
-<p>What was the hardest decision this week? Show me your log entry.</p>
-</li>
-<li>
-<p>Which constraint did you hit? Did it change anything?</p>
-</li>
-<li>
-<p>What did you decide <em>not</em> to do this week, and why?</p>
-</li>
-<li>
-<p>If you started over, what’s one decision you’d make differently?</p>
-</li>
-</ol>
-<p>The answers reveal more than the code ever will.</p>
-<hr>
-<p>Want me to also produce:</p>
-<ul>
-<li>
-<p>A <strong>fill-in-the-blank decision log file</strong> he can copy into the repo?</p>
-</li>
-<li>
-<p>A <strong>flow diagram</strong> (text/ASCII) for each of the 7 flows to paste in the README?</p>
-</li>
-<li>
-<p>A <strong>“red flags in code review”</strong> checklist tied to these flows?</p>
-</li>
-</ul>
-<p>Say which and I’ll draft it.</p>
+```
 
+  
+
+Do this **10 times** during the project. By the end, he thinks like a dev, not a tutorial-follower.
+
+  
+
+---
+
+  
+
+## 🎯 The One Rule for This Project
+
+  
+
+> **If a decision doesn't serve one of the 7 flows above, it's out of scope.**
+
+  
+
+That single sentence replaces a 50-page spec. Print it. Tape it to his monitor.
+
+  
+
+---
+
+  
+
+## 📌 What to Review With Him Weekly
+
+  
+
+Ask these 5 questions every Friday:
+
+  
+
+1. Which flow did you finish?
+
+2. What was the hardest decision this week? Show me your log entry.
+
+3. Which constraint did you hit? Did it change anything?
+
+4. What did you decide *not* to do this week, and why?
+
+5. If you started over, what's one decision you'd make differently?
+
+  
+
+The answers reveal more than the code ever will.
+
+  
+
+---
+
+  
+
+Want me to also produce:
+
+- A **fill-in-the-blank decision log file** he can copy into the repo?
+
+- A **flow diagram** (text/ASCII) for each of the 7 flows to paste in the README?
+
+- A **"red flags in code review"** checklist tied to these flows?
+
+  
+
+Say which and I'll draft it.
